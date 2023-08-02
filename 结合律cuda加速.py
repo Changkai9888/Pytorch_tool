@@ -1,8 +1,9 @@
-import torch,time,fc
+import torch,time
 def f(a,b):
     return a@b
 def associa(a,f=f):
-    "f为结合律双元算符"
+    '''输入矩阵序列a=[A1,A2,A3……A(i)]，输出为a的累次结合律二元运算序列result=[A1,A1*A2,A1*A2*A3,……,A1*A2*A3*……A(i-1)*A(i)]
+    注意：f为结合律双元算符'''
     n=int(len(a)**0.5)
     i=0
     sum_a=[]
@@ -51,5 +52,5 @@ for i in range(1):
 result[-1]==re[-1]
 print(result[-1],re[-1])
 print(result[int(len(a)**0.5)+13],re[int(len(a)**0.5)+13])
-fc.plot([tim1,tim2],k=1)
+print([tim1,tim2])
 """
