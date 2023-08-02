@@ -1,7 +1,7 @@
 import torch,time,fc
 def f(a,b):
     return a@b
-def associa(a,f):
+def associa(a,f=f):
     "f为结合律双元算符"
     n=int(len(a)**0.5)
     i=0
@@ -20,7 +20,8 @@ def associa(a,f):
     for i in range(n**2,len(a)):
         result[i]=f(result[i-1],a[i])
     return result
-
+"""
+#速度测试的例子
 tim1=[];tim2=[]
 for i in range(1):
     a=torch.rand(200000,2,2).cuda()
@@ -51,3 +52,4 @@ result[-1]==re[-1]
 print(result[-1],re[-1])
 print(result[int(len(a)**0.5)+13],re[int(len(a)**0.5)+13])
 fc.plot([tim1,tim2],k=1)
+"""
