@@ -1,3 +1,5 @@
+#Associative operator parallelization acceleration for pytorch.
+#用于pytorch的结合律算符并行化加速。
 import torch,time
 def get_Normalization(a,dim):
     "归一化：数据形状要求: batch*行 *列"
