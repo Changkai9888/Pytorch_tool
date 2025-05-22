@@ -74,7 +74,9 @@ def plot_trade(close,pos,right):
     axs[0].legend(loc='upper left',bbox_to_anchor=(1.0, 1),borderaxespad=-0.5)  # 右侧外定位[4,7](@ref)) 
     axs[0].set_title('交易结果', y=1.1)  # 标题上移
 
-    axs[1].plot(x, [0]*len(x),'k--',linewidth=0.5)
+    axs[1].plot(x, [0]*len(x),'k--',linewidth=0.5);
+    axs[1].plot(x, [1]*len(x),'k--',linewidth=0.5)
+    axs[1].plot(x, [-1]*len(x),'k--',linewidth=0.5)
     axs[1].plot(x, b, 'g', label='pos') 
     axs[1].set_ylim(-1.2, 1.2)
     axs[1].legend(loc='upper left',bbox_to_anchor=(1.0, 1),borderaxespad=-0.5)#loc='upper left')
