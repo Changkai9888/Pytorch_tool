@@ -3,8 +3,11 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import matplotlib
-from datetime import datetime
+from datetime import datetime, timedelta
 import matplotlib.dates as mdate
+import gzip,shutil,hashlib,time,pickle,os
+from functools import wraps
+import inspect
 plt.rcParams['font.sans-serif']=['SimHei']
 plt.rcParams['font.family'] = 'Arial'
 plt.rcParams['axes.unicode_minus'] = False    # 解决负号显示问题
@@ -91,6 +94,83 @@ def plot_trade(close,pos,right):
         ax.label_outer()  # 隐藏内部冗余标签[7](@ref)
         ax.grid(alpha=0.3)  # 添加辅助网格
     plt.show()
+#装饰器：函数的计时功能。
+def timer(func):
+    """装饰器：计算函数运行时间"""
+    @wraps(func)  # 保留原函数元信息（如函数名、文档说明）[4,7](@ref)
+    def wrapper(*args, **kwargs):
+        start_time = time.perf_counter()  # 使用高精度计时器（推荐）[6](@ref)
+        result = func(*args, **kwargs)    # 执行原函数
+        end_time = time.perf_counter()
+        duration = end_time - start_time
+        print(f"函数 {func.__name__} 运行耗时: {duration:.6f} 秒")  # 输出微秒级精度[6](@ref)
+        return result
+    return wrapper
+#装饰器：装饰器：加快反复调用 很耗时的 相同函数 相同参数 时的速度。
+def disk_cache(func):
+    '''装饰器：加快反复调用 很耗时的 相同函数 相同参数 时的速度。
+    相同的 函数 传递相同的 参数 时候，第一次调用计算结果保存到硬盘，第二次则不计算直接调用保存的结果进行输出。
+    保存在"./function_cache"，每次会比对函数的代码内容是否变化？参数传递是否变化？
+    每日首次运行时，自动检测，如果保存的结果在近3日没有被调用，则自动删除，防止硬盘空间不足。
+    对大文件进行压缩。'''
+    """硬盘缓存装饰器（集成GZIP压缩+函数指纹+参数指纹+过期清理）"""
+    CACHE_ROOT = "./function_cache"
+    CACHE_DAYS = 3
+    def cleanup_old_cache():
+        """清理过期缓存（基于网页9的目录时间戳比对）"""
+        now = datetime.now()
+        for func_dir in os.listdir(CACHE_ROOT):
+            dir_path = os.path.join(CACHE_ROOT, func_dir)
+            timestamp_file = os.path.join(dir_path, "timestamp.txt")
+            if os.path.exists(timestamp_file):
+                with open(timestamp_file, 'r') as f:
+                    cache_time = datetime.fromisoformat(f.read())
+                if abs((now - cache_time).days) > CACHE_DAYS:
+                    # 删除整个过期目录（网页10的shutil.rmtree方法）
+                    shutil.rmtree(dir_path)
+    @wraps(func)
+    def wrapper(*args, **kwargs):
+        # 1. 生成函数版本指纹（网页5的SHA256哈希方法）
+        func_code = inspect.getsource(func).encode()
+        func_hash = hashlib.sha256(func_code).hexdigest()[:16]
+        
+        # 2. 生成参数指纹（网页6的pickle序列化+MD5哈希）
+        param_data = pickle.dumps((args, kwargs))
+        param_hash = hashlib.md5(param_data).hexdigest()
+        
+        # 3. 创建缓存目录
+        cache_dir = os.path.join(CACHE_ROOT, f"func_{func_hash}")
+        os.makedirs(cache_dir, exist_ok=True)
+        
+        # 4. 缓存文件路径（保持.pkl后缀但实际为gzip压缩文件）
+        cache_file = os.path.join(cache_dir, f"param_{param_hash}.pkl")
+        timestamp_file = os.path.join(cache_dir, "timestamp.txt")
+        
+        # 5. 检查缓存有效性（网页7的流式压缩读法）
+        if os.path.exists(cache_file):
+            # 检查时间戳是否在3天内（网页9的时间比对逻辑）
+            with open(timestamp_file, 'r') as f:
+                cache_time = datetime.fromisoformat(f.read())
+            with open(timestamp_file, 'w') as f:
+                f.write(datetime.now().isoformat())#更新时间戳
+            if datetime.now() - cache_time >= timedelta(days=CACHE_DAYS):
+                # 运行过期清理
+                cleanup_old_cache()
+            # 使用gzip流式解压读取（网页3的GzipFile方法）
+            with gzip.open(cache_file, 'rb') as f:
+                return pickle.load(f)
+        # 6. 执行计算并保存结果（网页7的流式压缩写法）
+        result = func(*args, **kwargs)
+        # 使用gzip压缩序列化（网页6的pickle+gzip组合）
+        with gzip.open(cache_file, 'wb') as f:
+            pickle.dump(result, f, protocol=pickle.HIGHEST_PROTOCOL)
+        # 更新时间戳（网页9的时间记录方法）
+        with open(timestamp_file, 'w') as f:
+            f.write(datetime.now().isoformat())
+        # 7. 触发过期清理（网页10的目录级清理逻辑）
+        cleanup_old_cache()
+        return result
+    return wrapper
 ####
 def sigmoid(x):
     return 1 / (1 + np.exp(-x))
